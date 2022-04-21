@@ -1,0 +1,7 @@
+base   authgooglesheets
+author Anna Dabrowska
+email  dokuwiki@cosmocode.de
+date   2022-04-21
+name   authgooglesheets plugin
+desc   Authenticate using Google Sheets
+url    http://www.cosmocode.de

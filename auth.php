@@ -17,7 +17,6 @@ class auth_plugin_authgooglesheets extends AuthPlugin
     {
         parent::__construct();
         $this->helper = plugin_load('helper', 'authgooglesheets');
-        $this->cando['external'] = true;
         if ($this->helper->validateSheet()) {
             $this->cando['getUsers'] = true;
             $this->cando['addUser'] = true;
@@ -31,54 +30,14 @@ class auth_plugin_authgooglesheets extends AuthPlugin
     }
 
     /**
-     * Main authentication method
-     *
-     * @param string $user
-     * @param string $pass
-     * @param bool $sticky
-     *
-     * @return bool
+     * @inheritDoc
      */
-    public function trustExternal($user, $pass, $sticky = false)
+    public function checkPass($user, $pass)
     {
-        global $USERINFO;
-        global $lang;
+        $userinfo = $this->getUserData($user);
+        if ($userinfo === false) return false;
 
-        // try cookie login first
-        if (!empty($_SESSION[DOKU_COOKIE]['auth']['info'])) {
-            $USERINFO['name'] = $_SESSION[DOKU_COOKIE]['auth']['info']['name'];
-            $USERINFO['mail'] = $_SESSION[DOKU_COOKIE]['auth']['info']['mail'];
-            $USERINFO['grps'] = $_SESSION[DOKU_COOKIE]['auth']['info']['grps'];
-            $_SERVER['REMOTE_USER'] = $_SESSION[DOKU_COOKIE]['auth']['user'];
-            return true;
-        }
-
-        // explicit login
-        if (!empty($user)) {
-            $userData = $this->getUserData($user);
-
-            // no such user
-            if (!$userData) {
-                http_status(403, 'Login failed');
-                msg($lang['badlogin'], -1);
-                return false;
-            }
-
-            // password check
-            if (!auth_verifyPassword($pass, $userData['pass'])) return false;
-
-            // set the globals if authed
-            $USERINFO['name'] = $userData['name'];
-            $USERINFO['mail'] = $userData['mail'];
-            $USERINFO['grps'] = $userData['grps'];
-            $_SERVER['REMOTE_USER'] = $user;
-            auth_setCookie($user, $pass, $sticky);
-
-            $this->helper->writeStat($user, 'LOGIN', dformat());
-            return true;
-        } else {
-            return auth_login($user, $pass, $sticky);
-        }
+        return auth_verifyPassword($pass, $userinfo['pass']);
     }
 
     /**

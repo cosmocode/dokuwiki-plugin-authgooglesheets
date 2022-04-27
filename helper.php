@@ -31,10 +31,10 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function getUserFromSheet($user)
     {
-        $rows = $this->getUserRows($user);
-        if (empty($rows)) return false;
+        $row = $this->getUserRow($user);
+        if (empty($row)) return false;
 
-        $row = array_pop($rows);
+        $row = array_pop($row);
         $grps = array_map('trim', explode(',', $row[4]));
         return [
             'pass' => $row[1],
@@ -127,15 +127,21 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      * @return array[]
      * @throws \dokuwiki\Exception\FatalException
      */
-    protected function getUserRows($user)
+    protected function getUserRow($user)
     {
         $users = $this->getSheet();
-        return array_filter(
+        $row = array_filter(
             $users,
             function ($row) use ($user){
                 return $row[0] === $user;
             }
         );
+
+        if (count($row) > 1) {
+            throw new Exception('Invalid user data');
+        }
+
+        return $row;
     }
 
     /**
@@ -175,15 +181,10 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     protected function getClient()
     {
         $client = new \Google_Client();
-        try {
-            $client->setAuthConfig(DOKU_CONF . 'authgooglesheets_credentials.json');
-        } catch (InvalidArgumentException $exception) {
-
-        }
+        $client->setAuthConfig(DOKU_CONF . 'authgooglesheets_credentials.json');
         $client->setScopes([
             \Google_Service_Sheets::SPREADSHEETS,
         ]);
-
         return $client;
     }
 }

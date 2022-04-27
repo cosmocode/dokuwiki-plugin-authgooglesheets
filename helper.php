@@ -7,6 +7,7 @@
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  */
 
+use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
 use Google\Service\Sheets\BatchUpdateValuesRequest;
 
 require_once(__DIR__ . '/vendor/autoload.php');
@@ -58,7 +59,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             $this->columnMap = array_flip($header);
 
             foreach ($values as $key => $row) {
-                // row numbers start from 1 and we already removed the header row
+                // bump row number because index starts from 1 and we already removed the header row
                 $rowNum = $key + 2;
                 $grps = array_map('trim', explode(',', $row[$this->columnMap['grps']]));
                 $this->users[$row[$this->columnMap['user']]] = [
@@ -140,6 +141,54 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $body);
         } catch (Exception $e) {
             msg('Update failed');
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @param array $users
+     * @return bool
+     * @throws \dokuwiki\Exception\FatalException
+     */
+    public function delete($users)
+    {
+        if (empty($users)) return false;
+
+        // FIXME load users somewhere else
+        $this->users = $this->getUsers();
+
+        $spreadsheetId = $this->getConf('sheetId');
+        $requests = [];
+
+        // batch requests are processed sequentially so we have to adjust row number
+        $deleted = 0;
+        foreach ($users as $user) {
+            $rowNum = $this->users[$user]['row'] - $deleted;
+            $deleted++;
+
+            $requests[] = [
+                "deleteDimension" => [
+                    "range" => [
+                        "sheetId" => 0,
+                        "dimension" => "ROWS",
+                        "startIndex" => $rowNum - 1, // 0 based index here!
+                        "endIndex" => $rowNum
+                    ]
+                ]
+            ];
+        }
+
+        $body = new BatchUpdateSpreadsheetRequest(
+            [
+                'requests' => $requests
+            ]
+        );
+
+        try {
+            $this->service->spreadsheets->batchUpdate($spreadsheetId, $body);
+        } catch (Exception $e) {
+            msg('Deletion failed');
             return false;
         }
         return true;

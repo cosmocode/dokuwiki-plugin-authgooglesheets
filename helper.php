@@ -55,12 +55,11 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             $values = $this->getSheet();
 
             $header = array_shift($values);
-            foreach ($header as $index => $column) {
-                $this->columnMap[$column] = $index;
-            }
+            $this->columnMap = array_flip($header);
 
             foreach ($values as $key => $row) {
-                $rowNum = $key + 1;
+                // row numbers start from 1 and we already removed the header row
+                $rowNum = $key + 2;
                 $grps = array_map('trim', explode(',', $row[$this->columnMap['grps']]));
                 $this->users[$row[$this->columnMap['user']]] = [
                     'pass' => $row[$this->columnMap['pass']],
@@ -88,23 +87,29 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         $params = [
             'valueInputOption' => 'RAW'
         ];
-        $body = new \Google\Service\Sheets\ValueRange(['values' => [$userData]]);
+
+        $data = [];
+        foreach ($this->columnMap as $col => $index) {
+            if ($col === 'pass') {
+                $userData[$col] = auth_cryptPassword($userData[$col]);
+            }
+            $data[] = $userData[$col] ?? '';
+        }
+
+        $body = new \Google\Service\Sheets\ValueRange(['values' => [$data]]);
         try {
             $this->service->spreadsheets_values->append($spreadsheetId, $range, $body, $params);
-            // log user creation
-            $this->update($userData[0], ['created' => dformat()]);
         } catch (Exception $e) {
             msg('User cannot be added');
             return false;
         }
-
         return true;
     }
 
     /**
      * @param string $user
      * @param array $changes Array in which keys specify columns
-     * @return void
+     * @return bool
      */
     public function update($user, $changes)
     {
@@ -113,8 +118,11 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 
         $data = [];
         foreach ($changes as $col => $value) {
+            if ($col === 'pass') {
+                $value = auth_cryptPassword($value);
+            }
             $data[] = [
-                'range' => $rangeStart . $this->alpha[$this->columnMap[$col]] . ($this->users[$user]['row'] + 1),
+                'range' => $rangeStart . $this->alpha[$this->columnMap[$col]] . ($this->users[$user]['row']),
                 'values' => [
                     [$value]
                 ],
@@ -132,7 +140,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $body);
         } catch (Exception $e) {
             msg('Update failed');
+            return false;
         }
+        return true;
     }
 
     /**

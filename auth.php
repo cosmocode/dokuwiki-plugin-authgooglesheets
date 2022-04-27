@@ -80,14 +80,15 @@ class auth_plugin_authgooglesheets extends AuthPlugin
         }
 
         // the order is important
-        $userData[] = $user;
-        $userData[] = auth_cryptPassword($pwd);
-        $userData[] = $name;
-        $userData[] = $mail;
+        $userData['user'] = $user;
+        $userData['pass'] = $pwd;
+        $userData['name'] = $name;
+        $userData['mail'] = $mail;
+        $userData['created'] = dformat();
 
         // set default group if no groups specified
         if (!is_array($grps)) $grps = array($conf['defaultgroup']);
-        $userData[] = implode(',', $grps);
+        $userData['grps'] = implode(',', $grps);
 
         return $this->helper->appendUser($userData);
     }

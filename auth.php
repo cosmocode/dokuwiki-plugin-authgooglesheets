@@ -41,7 +41,7 @@ class auth_plugin_authgooglesheets extends AuthPlugin
 
         // make sure to log the login
         if ($verified) {
-            $this->helper->writeStat($user, 'LOGIN', dformat());
+            $this->helper->writeStat($user, 'lastlogin', dformat());
         }
 
         return $verified;
@@ -56,7 +56,7 @@ class auth_plugin_authgooglesheets extends AuthPlugin
      */
     public function getUserData($user, $requireGroups = true)
     {
-        return $this->helper->getUserFromSheet($user);
+        return $this->helper->getUserData($user);
     }
 
     /**
@@ -113,14 +113,7 @@ class auth_plugin_authgooglesheets extends AuthPlugin
      */
     public function retrieveUsers($start = 0, $limit = 0, $filter = array())
     {
-        $users = [];
-        $userData = $this->helper->getUsers();
-
-        foreach ($userData as $data) {
-            $users[$data['user']] = $data['userinfo'];
-        }
-
         // TODO apply limits
-        return $users;
+        return $this->helper->getUsers();
     }
 }

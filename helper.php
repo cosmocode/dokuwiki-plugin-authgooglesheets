@@ -17,6 +17,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     /** @var Google_Service_Sheets */
     protected $service;
 
+    protected $users = [];
+    protected $columnMap = [];
+
     public function __construct()
     {
         $client = $this->getClient();
@@ -24,24 +27,15 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     }
 
     /**
-     * Returns user data in typical userinfo format
+     * Returns user data or false if user does not exist
      *
      * @param string $user
      * @return array|false
      */
-    public function getUserFromSheet($user)
+    public function getUserData($user)
     {
-        $row = $this->getUserRow($user);
-        if (empty($row)) return false;
-
-        $row = array_pop($row);
-        $grps = array_map('trim', explode(',', $row[4]));
-        return [
-            'pass' => $row[1],
-            'name' => $row[2],
-            'mail' => $row[3],
-            'grps' => $grps,
-        ];
+         $users = $this->getUsers();
+         return $users[$user] ?? false;
     }
 
     /**
@@ -52,23 +46,28 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function getUsers()
     {
-        $users = [];
-        $values = $this->getSheet();
+        if (empty($this->users)) {
+            $values = $this->getSheet();
 
-        foreach ($values as $key => $row) {
-            $grps = array_map('trim', explode(',', $row[4]));
-            $users[$key] = [
-                'user' => $row[0],
-                'userinfo' => [
-                    'pass' => $row[1],
-                    'name' => $row[2],
-                    'mail' => $row[3],
+            $header = array_shift($values);
+            foreach ($header as $index => $column) {
+                $this->columnMap[$column] = $index;
+            }
+
+            foreach ($values as $key => $row) {
+                $rowNum = $key + 1;
+                $grps = array_map('trim', explode(',', $row[$this->columnMap['grps']]));
+                $this->users[$row[$this->columnMap['user']]] = [
+                    'pass' => $row[$this->columnMap['pass']],
+                    'name' => $row[$this->columnMap['name']],
+                    'mail' => $row[$this->columnMap['mail']],
                     'grps' => $grps,
-                ],
-            ];
+                    'row' => $rowNum
+                ];
+            }
         }
 
-        return $users;
+        return $this->users;
     }
 
     /**
@@ -88,7 +87,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         try {
             $this->service->spreadsheets_values->append($spreadsheetId, $range, $body, $params);
             // add stat 'user creation'
-            $this->writeStat($userData[0], 'CREATE', dformat(time()));
+            $this->writeStat($userData[0], 'created', dformat(time()));
         } catch (Exception $e) {
             msg('User cannot be added');
             return false;
@@ -122,29 +121,6 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     }
 
     /**
-     *
-     * @param string $user
-     * @return array[]
-     * @throws \dokuwiki\Exception\FatalException
-     */
-    protected function getUserRow($user)
-    {
-        $users = $this->getSheet();
-        $row = array_filter(
-            $users,
-            function ($row) use ($user){
-                return $row[0] === $user;
-            }
-        );
-
-        if (count($row) > 1) {
-            throw new Exception('Invalid user data');
-        }
-
-        return $row;
-    }
-
-    /**
      * Returns all user rows from the auth sheet
      *
      * @return array[]
@@ -159,7 +135,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         }
 
         $spreadsheetId = $this->getConf('sheetId');
-        $range = $this->getConf('sheetName') . '!A2:E';
+        $range = $this->getConf('sheetName') . '!A1:Z';
         $response = $this->service->spreadsheets_values->get($spreadsheetId, $range);
         $values = $response->getValues();
 

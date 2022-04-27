@@ -37,7 +37,14 @@ class auth_plugin_authgooglesheets extends AuthPlugin
         $userinfo = $this->getUserData($user);
         if ($userinfo === false) return false;
 
-        return auth_verifyPassword($pass, $userinfo['pass']);
+        $verified = auth_verifyPassword($pass, $userinfo['pass']);
+
+        // make sure to log the login
+        if ($verified) {
+            $this->helper->writeStat($user, 'LOGIN', dformat());
+        }
+
+        return $verified;
     }
 
     /**

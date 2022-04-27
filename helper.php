@@ -7,6 +7,8 @@
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  */
 
+use Google\Service\Sheets\BatchUpdateValuesRequest;
+
 require_once(__DIR__ . '/vendor/autoload.php');
 
 /**
@@ -19,6 +21,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 
     protected $users = [];
     protected $columnMap = [];
+
+    protected $alpha = 'ABCDEFGHIJKLMNOPQRSTVWXYZ';
+
 
     public function __construct()
     {
@@ -86,8 +91,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         $body = new \Google\Service\Sheets\ValueRange(['values' => [$userData]]);
         try {
             $this->service->spreadsheets_values->append($spreadsheetId, $range, $body, $params);
-            // add stat 'user creation'
-            $this->writeStat($userData[0], 'created', dformat(time()));
+            // log user creation
+            $this->update($userData[0], ['created' => dformat()]);
         } catch (Exception $e) {
             msg('User cannot be added');
             return false;
@@ -97,26 +102,36 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     }
 
     /**
-     * Records the timestamp of an event, such as user creation or login
-     *
      * @param string $user
-     * @param string $stat
-     * @param string $value
+     * @param array $changes Array in which keys specify columns
      * @return void
      */
-    public function writeStat($user, $stat, $value)
+    public function update($user, $changes)
     {
         $spreadsheetId = $this->getConf('sheetId');
-        $range = $this->getConf('sheetNameStats') . '!A2';
+        $rangeStart = $this->getConf('sheetName') . '!';
 
-        $params = [
-            'valueInputOption' => 'RAW'
-        ];
-        $body = new \Google\Service\Sheets\ValueRange(['values' => [[$user, $stat, $value]]]);
+        $data = [];
+        foreach ($changes as $col => $value) {
+            $data[] = [
+                'range' => $rangeStart . $this->alpha[$this->columnMap[$col]] . ($this->users[$user]['row'] + 1),
+                'values' => [
+                    [$value]
+                ],
+            ];
+        }
+
+        $body = new BatchUpdateValuesRequest(
+            [
+                'valueInputOption' => 'RAW',
+                'data' => $data
+            ]
+        );
+
         try {
-            $this->service->spreadsheets_values->append($spreadsheetId, $range, $body, $params);
+            $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $body);
         } catch (Exception $e) {
-            msg('Stat cannot be added');
+            msg('Update failed');
         }
     }
 

@@ -107,6 +107,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             msg('User cannot be added');
             return false;
         }
+        // reset users
+        $this->users = [];
         return true;
     }
 
@@ -124,6 +126,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         foreach ($changes as $col => $value) {
             if ($col === 'pass') {
                 $value = auth_cryptPassword($value);
+            }
+            if ($col === 'grps') {
+                $value = implode(',', $value);
             }
             $data[] = [
                 'range' => $rangeStart . $this->alpha[$this->columnMap[$col]] . ($this->users[$user]['row']),
@@ -193,6 +198,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             msg('Deletion failed');
             return false;
         }
+
+        // reset users
+        $this->users = [];
         return true;
     }
 

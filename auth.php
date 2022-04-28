@@ -110,7 +110,6 @@ class auth_plugin_authgooglesheets extends AuthPlugin
      * @param $limit
      * @param $filter
      * @return array
-     * @throws \dokuwiki\Exception\FatalException
      */
     public function retrieveUsers($start = 0, $limit = 0, $filter = array())
     {

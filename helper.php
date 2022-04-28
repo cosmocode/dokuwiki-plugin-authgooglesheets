@@ -28,8 +28,12 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 
     public function __construct()
     {
-        $client = $this->getClient();
-        $this->service = new Google_Service_Sheets($client);
+        try {
+            $client = $this->getClient();
+            $this->service = new Google_Service_Sheets($client);
+        } catch (Exception $e) {
+            msg('Authentication Error: ' . $e->getMessage());
+        }
     }
 
     /**
@@ -48,7 +52,6 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      * Returns user data as nested arrays
      *
      * @return array
-     * @throws \dokuwiki\Exception\FatalException
      */
     public function getUsers()
     {
@@ -143,13 +146,14 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             msg('Update failed');
             return false;
         }
+        // reset users
+        $this->users = [];
         return true;
     }
 
     /**
      * @param array $users
      * @return bool
-     * @throws \dokuwiki\Exception\FatalException
      */
     public function delete($users)
     {
@@ -196,14 +200,13 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      * Returns all user rows from the auth sheet
      *
      * @return array[]
-     * @throws \dokuwiki\Exception\FatalException
      */
     protected function getSheet()
     {
         $sheetId = $this->getConf('sheetId');
 
         if (empty($sheetId)) {
-            throw new \dokuwiki\Exception\FatalException('Google Sheet ID not set!');
+            throw new Exception('Google Sheet ID not set!');
         }
 
         $spreadsheetId = $this->getConf('sheetId');
@@ -229,7 +232,11 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     protected function getClient()
     {
         $client = new \Google_Client();
-        $client->setAuthConfig(DOKU_CONF . 'authgooglesheets_credentials.json');
+        $config = DOKU_CONF . 'authgooglesheets_credentials.json';
+        if (!is_file($config)) {
+            throw new Exception('Authentication configuration missing!');
+        }
+        $client->setAuthConfig($config);
         $client->setScopes([
             \Google_Service_Sheets::SPREADSHEETS,
         ]);

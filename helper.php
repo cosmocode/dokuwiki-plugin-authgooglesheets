@@ -161,11 +161,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         $spreadsheetId = $this->getConf('sheetId');
         $requests = [];
 
-        // batch requests are processed sequentially so we have to adjust row number
-        $deleted = 0;
+        $users = array_reverse($users);
         foreach ($users as $user) {
-            $rowNum = $this->users[$user]['row'] - $deleted;
-            $deleted++;
+            $rowNum = $this->users[$user]['row'];
 
             $requests[] = [
                 "deleteDimension" => [

@@ -17,16 +17,18 @@ class auth_plugin_authgooglesheets extends AuthPlugin
     {
         parent::__construct();
         $this->helper = plugin_load('helper', 'authgooglesheets');
-        if ($this->helper->validateSheet()) {
-            $this->cando['getUsers'] = true;
-            $this->cando['addUser'] = true;
-            $this->cando['delUser'] = true;
-            $this->cando['modLogin'] = true;
-            $this->cando['modPass'] = true;
-            $this->cando['modName'] = true;
-            $this->cando['modMail'] = true;
-            $this->cando['modGroups'] = true;
+        if (!$this->helper->validateSheet()) {
+            throw new Exception('User Sheet invalid!');
         }
+
+        $this->cando['getUsers'] = true;
+        $this->cando['addUser'] = true;
+        $this->cando['delUser'] = true;
+        $this->cando['modLogin'] = true;
+        $this->cando['modPass'] = true;
+        $this->cando['modName'] = true;
+        $this->cando['modMail'] = true;
+        $this->cando['modGroups'] = true;
     }
 
     /**

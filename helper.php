@@ -22,6 +22,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     protected $spreadsheetId;
 
     protected $users = [];
+    protected $requiredCols = ['user', 'pass', 'name', 'mail', 'grps'];
     protected $columnMap = [];
 
     protected $alpha = 'ABCDEFGHIJKLMNOPQRSTVWXYZ';
@@ -237,9 +238,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
         $header = $response->getValues();
 
-        $cols = ['user', 'pass', 'name', 'mail', 'grps'];
-
-        return array_intersect($cols, $header[0]) === $cols;
+        return array_intersect($this->requiredCols, $header[0]) === $this->requiredCols;
     }
 
     /**

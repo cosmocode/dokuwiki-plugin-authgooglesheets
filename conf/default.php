@@ -5,7 +5,5 @@
  * @author Anna Dabrowska <dokuwiki@cosmocode.de>
  */
 
-$conf['APIkey']    = '';
 $conf['sheetId'] = '';
 $conf['sheetName'] = 'DokuWikiAuth';
-$conf['sheetNameStats'] = 'Stats';

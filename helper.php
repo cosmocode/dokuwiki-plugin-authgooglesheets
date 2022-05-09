@@ -19,6 +19,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 {
     /** @var Google_Service_Sheets */
     protected $service;
+    protected $spreadsheetId;
 
     protected $users = [];
     protected $columnMap = [];
@@ -29,6 +30,11 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     public function __construct()
     {
         try {
+            $this->spreadsheetId = $this->getConf('sheetId');
+            if (empty($this->spreadsheetId)) {
+                throw new Exception('Google Spreadsheet ID not set!');
+            }
+
             $client = $this->getClient();
             $this->service = new Google_Service_Sheets($client);
         } catch (Exception $e) {
@@ -64,10 +70,19 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             foreach ($values as $key => $row) {
                 // bump row number because index starts from 1 and we already removed the header row
                 $rowNum = $key + 2;
-                $grps = array_map('trim', explode(',', $row[$this->columnMap['grps']]));
+
+                // ignore invalid rows without required user properties
+                if (!$row[$this->columnMap['user']] || !$row[$this->columnMap['pass']] || !$row[$this->columnMap['mail']]) {
+                    continue;
+                }
+
+                $name = $row[$this->columnMap['name']] ?? '';
+                $grps = $row[$this->columnMap['grps']] ?? '';
+
+                $grps = array_map('trim', explode(',', $grps));
                 $this->users[$row[$this->columnMap['user']]] = [
                     'pass' => $row[$this->columnMap['pass']],
-                    'name' => $row[$this->columnMap['name']],
+                    'name' => $name,
                     'mail' => $row[$this->columnMap['mail']],
                     'grps' => $grps,
                     'row' => $rowNum
@@ -86,7 +101,6 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function appendUser($userData)
     {
-        $spreadsheetId = $this->getConf('sheetId');
         $range = $this->getConf('sheetName') . '!A2';
         $params = [
             'valueInputOption' => 'RAW'
@@ -102,7 +116,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 
         $body = new \Google\Service\Sheets\ValueRange(['values' => [$data]]);
         try {
-            $this->service->spreadsheets_values->append($spreadsheetId, $range, $body, $params);
+            $this->service->spreadsheets_values->append($this->spreadsheetId, $range, $body, $params);
         } catch (Exception $e) {
             msg('User cannot be added');
             return false;
@@ -119,7 +133,6 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function update($user, $changes)
     {
-        $spreadsheetId = $this->getConf('sheetId');
         $rangeStart = $this->getConf('sheetName') . '!';
 
         $data = [];
@@ -146,7 +159,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         );
 
         try {
-            $this->service->spreadsheets_values->batchUpdate($spreadsheetId, $body);
+            $this->service->spreadsheets_values->batchUpdate($this->spreadsheetId, $body);
         } catch (Exception $e) {
             msg('Update failed');
             return false;
@@ -167,7 +180,6 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         // FIXME load users somewhere else
         $this->users = $this->getUsers();
 
-        $spreadsheetId = $this->getConf('sheetId');
         $requests = [];
 
         $users = array_reverse($users);
@@ -193,7 +205,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         );
 
         try {
-            $this->service->spreadsheets->batchUpdate($spreadsheetId, $body);
+            $this->service->spreadsheets->batchUpdate($this->spreadsheetId, $body);
         } catch (Exception $e) {
             msg('Deletion failed');
             return false;
@@ -211,15 +223,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     protected function getSheet()
     {
-        $sheetId = $this->getConf('sheetId');
-
-        if (empty($sheetId)) {
-            throw new Exception('Google Sheet ID not set!');
-        }
-
-        $spreadsheetId = $this->getConf('sheetId');
         $range = $this->getConf('sheetName') . '!A1:Z';
-        $response = $this->service->spreadsheets_values->get($spreadsheetId, $range);
+        $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
         $values = $response->getValues();
 
         return $values;
@@ -228,7 +233,13 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     public function validateSheet()
     {
         // FIXME check the existence and write access to the sheet
-        return true;
+        $range = $this->getConf('sheetName') . '!1:1';
+        $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
+        $header = $response->getValues();
+
+        $cols = ['user', 'pass', 'name', 'mail', 'grps'];
+
+        return array_intersect($cols, $header[0]) === $cols;
     }
 
     /**

@@ -6,4 +6,5 @@
  */
 
 $conf['sheetId'] = '';
+$conf['sheetGid'] = '';
 $conf['sheetName'] = 'DokuWikiAuth';

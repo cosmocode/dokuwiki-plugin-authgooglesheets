@@ -6,4 +6,5 @@
  */
 
 $meta['sheetId'] = ['string'];
+$meta['sheetGid'] = ['string'];
 $meta['sheetName'] = ['string'];

@@ -73,7 +73,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
                 $rowNum = $key + 2;
 
                 // ignore invalid rows without required user properties
-                if (!$row[$this->columnMap['user']] || !$row[$this->columnMap['pass']] || !$row[$this->columnMap['mail']]) {
+                if (empty($row[$this->columnMap['user']]) || empty($row[$this->columnMap['pass']]) || empty($row[$this->columnMap['mail']])) {
                     continue;
                 }
 
@@ -134,6 +134,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function update($user, $changes)
     {
+        // ensure variable is not empty, e.g. in user profile
+        $this->users = $this->getUsers();
+
         $rangeStart = $this->getConf('sheetName') . '!';
 
         $data = [];

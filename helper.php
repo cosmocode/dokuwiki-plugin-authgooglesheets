@@ -193,7 +193,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             $requests[] = [
                 "deleteDimension" => [
                     "range" => [
-                        "sheetId" => 0,
+                        "sheetId" => $this->getConf('sheetGid'),
                         "dimension" => "ROWS",
                         "startIndex" => $rowNum - 1, // 0 based index here!
                         "endIndex" => $rowNum

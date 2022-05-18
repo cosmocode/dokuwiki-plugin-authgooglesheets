@@ -21,6 +21,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     protected $service;
     protected $spreadsheetId;
 
+    protected $userCacheId = 'userCache';
     protected $users = [];
     protected $requiredCols = ['user', 'pass', 'name', 'mail', 'grps'];
     protected $columnMap = [];
@@ -62,6 +63,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function getUsers()
     {
+        $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
+        $this->users = json_decode($userCache->retrieveCache(), true);
+
         if (empty($this->users)) {
             $values = $this->getSheet();
 
@@ -89,6 +93,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
                     'row' => $rowNum
                 ];
             }
+
+            $userCache->storeCache(json_encode($this->users));
         }
 
         return $this->users;
@@ -123,7 +129,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             return false;
         }
         // reset users
-        $this->users = [];
+        $this->resetUsers();
         return true;
     }
 
@@ -169,7 +175,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             return false;
         }
         // reset users
-        $this->users = [];
+        $this->resetUsers();
         return true;
     }
 
@@ -216,7 +222,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         }
 
         // reset users
-        $this->users = [];
+        $this->resetUsers();
         return true;
     }
 
@@ -234,14 +240,28 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         return $values;
     }
 
+    /**
+     * Cached check if the sheet is valid, i.e. has all required columns
+     *
+     * @return bool
+     */
     public function validateSheet()
     {
-        // FIXME check the existence and write access to the sheet
+        $cache = new dokuwiki\Cache\Cache('validated', 'authgooglesheets');
+
+        if ($cache->retrieveCache()) {
+            return true;
+        }
+
         $range = $this->getConf('sheetName') . '!1:1';
         $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
         $header = $response->getValues();
 
-        return array_intersect($this->requiredCols, $header[0]) === $this->requiredCols;
+        $isValid = array_intersect($this->requiredCols, $header[0]) === $this->requiredCols;
+
+        if ($isValid) $cache->storeCache(time());
+
+        return $isValid;
     }
 
     /**
@@ -262,5 +282,17 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             \Google_Service_Sheets::SPREADSHEETS,
         ]);
         return $client;
+    }
+
+    /**
+     * Clear users stored in class variable and filesystem cache
+     *
+     * @return void
+     */
+    protected function resetUsers()
+    {
+        $this->users = [];
+        $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
+        $userCache->removeCache();
     }
 }

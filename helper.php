@@ -64,9 +64,9 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     public function getUsers()
     {
         $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
-        $this->users = json_decode($userCache->retrieveCache(), true);
+        $decoded = json_decode($userCache->retrieveCache(), true);
 
-        if (empty($this->users)) {
+        if (empty($decoded)) {
             $values = $this->getSheet();
 
             $header = array_shift($values);
@@ -94,7 +94,10 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
                 ];
             }
 
-            $userCache->storeCache(json_encode($this->users));
+            $userCache->storeCache(json_encode(['columnMap' => $this->columnMap, 'users' => $this->users]));
+        } else {
+            $this->users = $decoded['users'] ?? null;
+            $this->columnMap = $decoded['columnMap'] ?? null;
         }
 
         return $this->users;

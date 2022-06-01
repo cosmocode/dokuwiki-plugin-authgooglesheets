@@ -22,6 +22,7 @@ class auth_plugin_authgooglesheets extends AuthPlugin
         }
 
         $this->cando['getUsers'] = true;
+        $this->cando['getUserCount'] = true;
         $this->cando['addUser'] = true;
         $this->cando['delUser'] = true;
         $this->cando['modLogin'] = true;
@@ -113,9 +114,19 @@ class auth_plugin_authgooglesheets extends AuthPlugin
      * @param $filter
      * @return array
      */
-    public function retrieveUsers($start = 0, $limit = 0, $filter = array())
+    public function retrieveUsers($start = 0, $limit = 0, $filter = null)
     {
-        // TODO apply limits
-        return $this->helper->getUsers();
+        return $this->helper->getUsers($start, $limit, $filter);
+    }
+
+    /**
+     * Return the number of users which meet $filter criteria
+     *
+     * @param array $filter
+     * @return int
+     */
+    public function getUserCount($filter = array())
+    {
+        return count($this->helper->getUsers(0, 0, $filter));
     }
 }

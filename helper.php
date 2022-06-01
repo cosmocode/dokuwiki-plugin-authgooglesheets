@@ -27,6 +27,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     protected $columnMap = [];
 
     protected $alpha = 'ABCDEFGHIJKLMNOPQRSTVWXYZ';
+    protected $pattern;
 
 
     public function __construct()
@@ -61,7 +62,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      *
      * @return array
      */
-    public function getUsers()
+    public function getUsers($start = 0, $limit = 0, $filter = null)
     {
         $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
         $decoded = json_decode($userCache->retrieveCache(), true);
@@ -98,6 +99,12 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         } else {
             $this->users = $decoded['users'] ?? null;
             $this->columnMap = $decoded['columnMap'] ?? null;
+        }
+
+        ksort($this->users);
+
+        if (!empty($filter)) {
+            return $this->getFilteredUsers($start, $limit, $filter);
         }
 
         return $this->users;
@@ -226,6 +233,63 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 
         // reset users
         $this->resetUsers();
+        return true;
+    }
+
+    /**
+     * Filter implementation from authplain
+     * @see \auth_plugin_authplain
+     *
+     * @param int $start
+     * @param int $limit
+     * @param array $filter
+     * @return array
+     */
+    protected function getFilteredUsers($start, $limit, $filter)
+    {
+        $this->pattern = array();
+        foreach ($filter as $item => $pattern) {
+            $this->pattern[$item] = '/'.str_replace('/', '\/', $pattern).'/i'; // allow regex characters
+        }
+
+        $i = 0;
+        $count = 0;
+        $out = array();
+
+        foreach ($this->users as $user => $info) {
+            if ($this->filter($user, $info)) {
+                if ($i >= $start) {
+                    $out[$user] = $info;
+                    $count++;
+                    if (($limit > 0) && ($count >= $limit)) break;
+                }
+                $i++;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * return true if $user + $info match $filter criteria, false otherwise
+     *
+     * @author   Chris Smith <chris@jalakai.co.uk>
+     *
+     * @param string $user User login
+     * @param array  $info User's userinfo array
+     * @return bool
+     */
+    protected function filter($user, $info)
+    {
+        foreach ($this->pattern as $item => $pattern) {
+            if ($item == 'user') {
+                if (!preg_match($pattern, $user)) return false;
+            } elseif ($item == 'grps') {
+                if (!count(preg_grep($pattern, $info['grps']))) return false;
+            } else {
+                if (!preg_match($pattern, $info[$item])) return false;
+            }
+        }
         return true;
     }
 

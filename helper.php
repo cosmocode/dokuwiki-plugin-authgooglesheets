@@ -103,11 +103,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
 
         ksort($this->users);
 
-        if (!empty($filter)) {
-            return $this->getFilteredUsers($start, $limit, $filter);
-        }
-
-        return $this->users;
+        return $this->getFilteredUsers($start, $limit, $filter);
     }
 
     /**

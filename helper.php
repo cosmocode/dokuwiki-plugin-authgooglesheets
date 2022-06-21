@@ -64,10 +64,16 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     public function getUsers($start = 0, $limit = 0, $filter = null)
     {
+        global $conf;
+        global $INPUT;
+
         $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
         $decoded = json_decode($userCache->retrieveCache(), true);
 
-        if (empty($decoded)) {
+        $depends['age'] = $conf['cachetime'];
+        $depends['purge'] = $INPUT->bool('purge');
+
+        if (empty($decoded) || !$userCache->useCache($depends)) {
             $values = $this->getSheet();
 
             $header = array_shift($values);
@@ -243,6 +249,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
      */
     protected function getFilteredUsers($start, $limit, $filter)
     {
+        $filter = $filter ?? [];
         $this->pattern = array();
         foreach ($filter as $item => $pattern) {
             $this->pattern[$item] = '/'.str_replace('/', '\/', $pattern).'/i'; // allow regex characters

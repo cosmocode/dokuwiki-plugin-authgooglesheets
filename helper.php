@@ -82,7 +82,11 @@ class helper_plugin_authgooglesheets extends Plugin
                 $rowNum = $key + 2;
 
                 // ignore invalid rows without required user properties
-                if (empty($row[$this->columnMap['user']]) || empty($row[$this->columnMap['pass']]) || empty($row[$this->columnMap['mail']])) {
+                if (
+                    empty($row[$this->columnMap['user']])
+                    || empty($row[$this->columnMap['pass']])
+                    || empty($row[$this->columnMap['mail']])
+                ) {
                     continue;
                 }
 
@@ -236,7 +240,7 @@ class helper_plugin_authgooglesheets extends Plugin
         $filter = $filter ?? [];
         $this->pattern = array();
         foreach ($filter as $item => $pattern) {
-            $this->pattern[$item] = '/'.str_replace('/', '\/', $pattern).'/i'; // allow regex characters
+            $this->pattern[$item] = '/' . str_replace('/', '\/', $pattern) . '/i'; // allow regex characters
         }
 
         $i = 0;

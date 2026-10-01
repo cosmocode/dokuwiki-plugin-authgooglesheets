@@ -7,18 +7,17 @@
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  */
 
-use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
-use Google\Service\Sheets\BatchUpdateValuesRequest;
-
-require_once(__DIR__ . '/vendor/autoload.php');
+use dokuwiki\Extension\Plugin;
+use dokuwiki\plugin\authgooglesheets\ServiceAccountAuth;
+use dokuwiki\plugin\authgooglesheets\SheetsClient;
 
 /**
  * Class helper_plugin_authgooglesheets
  */
-class helper_plugin_authgooglesheets extends DokuWiki_Plugin
+class helper_plugin_authgooglesheets extends Plugin
 {
-    /** @var Google_Service_Sheets */
-    protected $service;
+    /** @var SheetsClient */
+    protected $client;
     protected $spreadsheetId;
 
     protected $userCacheId = 'userCache';
@@ -38,8 +37,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
                 throw new Exception('Google Spreadsheet ID not set!');
             }
 
-            $client = $this->getClient();
-            $this->service = new Google_Service_Sheets($client);
+            $this->client = new SheetsClient($this->spreadsheetId, $this->getAuth());
         } catch (Exception $e) {
             msg('Authentication Error: ' . $e->getMessage());
         }
@@ -133,9 +131,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             $data[] = $userData[$col] ?? '';
         }
 
-        $body = new \Google\Service\Sheets\ValueRange(['values' => [$data]]);
         try {
-            $this->service->spreadsheets_values->append($this->spreadsheetId, $range, $body, $params);
+            $this->client->appendValues($range, [$data], $params['valueInputOption']);
         } catch (Exception $e) {
             msg('User cannot be added');
             return false;
@@ -173,15 +170,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             ];
         }
 
-        $body = new BatchUpdateValuesRequest(
-            [
-                'valueInputOption' => 'RAW',
-                'data' => $data
-            ]
-        );
-
         try {
-            $this->service->spreadsheets_values->batchUpdate($this->spreadsheetId, $body);
+            $this->client->batchUpdateValues($data, 'RAW');
         } catch (Exception $e) {
             msg('Update failed');
             return false;
@@ -220,14 +210,8 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
             ];
         }
 
-        $body = new BatchUpdateSpreadsheetRequest(
-            [
-                'requests' => $requests
-            ]
-        );
-
         try {
-            $this->service->spreadsheets->batchUpdate($this->spreadsheetId, $body);
+            $this->client->batchUpdate($requests);
         } catch (Exception $e) {
             msg('Deletion failed');
             return false;
@@ -304,10 +288,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     protected function getSheet()
     {
         $range = $this->getConf('sheetName') . '!A1:Z';
-        $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
-        $values = $response->getValues();
-
-        return $values;
+        return $this->client->getValues($range);
     }
 
     /**
@@ -324,8 +305,7 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
         }
 
         $range = $this->getConf('sheetName') . '!1:1';
-        $response = $this->service->spreadsheets_values->get($this->spreadsheetId, $range);
-        $header = $response->getValues();
+        $header = $this->client->getValues($range);
 
         $isValid = array_intersect($this->requiredCols, $header[0]) === $this->requiredCols;
 
@@ -335,23 +315,17 @@ class helper_plugin_authgooglesheets extends DokuWiki_Plugin
     }
 
     /**
-     * Returns an authorized API client.
+     * Returns the service account authentication for the API client
      *
-     * @return Google_Client the authorized client object
-     * @throws \Google\Exception
+     * @return ServiceAccountAuth
+     * @throws \dokuwiki\plugin\authgooglesheets\SheetsException when the credentials are missing or invalid
      */
-    protected function getClient()
+    protected function getAuth()
     {
-        $client = new \Google_Client();
-        $config = DOKU_CONF . 'authgooglesheets_credentials.json';
-        if (!is_file($config)) {
-            throw new Exception('Authentication configuration missing!');
-        }
-        $client->setAuthConfig($config);
-        $client->setScopes([
-            \Google_Service_Sheets::SPREADSHEETS,
-        ]);
-        return $client;
+        return new ServiceAccountAuth(
+            DOKU_CONF . 'authgooglesheets_credentials.json',
+            [SheetsClient::SCOPE]
+        );
     }
 
     /**

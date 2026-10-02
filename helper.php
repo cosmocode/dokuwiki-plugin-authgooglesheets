@@ -7,6 +7,8 @@
  * @license GPL 2 http://www.gnu.org/licenses/gpl-2.0.html
  */
 
+use dokuwiki\Cache\Cache;
+use dokuwiki\plugin\authgooglesheets\SheetsException;
 use dokuwiki\Extension\Plugin;
 use dokuwiki\plugin\authgooglesheets\ServiceAccountAuth;
 use dokuwiki\plugin\authgooglesheets\SheetsClient;
@@ -65,7 +67,7 @@ class helper_plugin_authgooglesheets extends Plugin
         global $conf;
         global $INPUT;
 
-        $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
+        $userCache = new Cache($this->userCacheId, 'authgooglesheets');
         $decoded = json_decode($userCache->retrieveCache(), true);
 
         $depends['age'] = $conf['cachetime'];
@@ -93,7 +95,7 @@ class helper_plugin_authgooglesheets extends Plugin
                 $name = $row[$this->columnMap['name']] ?? '';
                 $grps = $row[$this->columnMap['grps']] ?? '';
 
-                $grps = array_map('trim', explode(',', $grps));
+                $grps = array_map(trim(...), explode(',', $grps));
                 $this->users[$row[$this->columnMap['user']]] = [
                     'pass' => $row[$this->columnMap['pass']],
                     'name' => $name,
@@ -137,7 +139,7 @@ class helper_plugin_authgooglesheets extends Plugin
 
         try {
             $this->client->appendValues($range, [$data], $params['valueInputOption']);
-        } catch (Exception $e) {
+        } catch (Exception) {
             msg('User cannot be added');
             return false;
         }
@@ -176,7 +178,7 @@ class helper_plugin_authgooglesheets extends Plugin
 
         try {
             $this->client->batchUpdateValues($data, 'RAW');
-        } catch (Exception $e) {
+        } catch (Exception) {
             msg('Update failed');
             return false;
         }
@@ -216,7 +218,7 @@ class helper_plugin_authgooglesheets extends Plugin
 
         try {
             $this->client->batchUpdate($requests);
-        } catch (Exception $e) {
+        } catch (Exception) {
             msg('Deletion failed');
             return false;
         }
@@ -237,15 +239,15 @@ class helper_plugin_authgooglesheets extends Plugin
      */
     protected function getFilteredUsers($start, $limit, $filter)
     {
-        $filter = $filter ?? [];
-        $this->pattern = array();
+        $filter ??= [];
+        $this->pattern = [];
         foreach ($filter as $item => $pattern) {
             $this->pattern[$item] = '/' . str_replace('/', '\/', $pattern) . '/i'; // allow regex characters
         }
 
         $i = 0;
         $count = 0;
-        $out = array();
+        $out = [];
 
         foreach ($this->users as $user => $info) {
             if ($this->filter($user, $info)) {
@@ -302,7 +304,7 @@ class helper_plugin_authgooglesheets extends Plugin
      */
     public function validateSheet()
     {
-        $cache = new dokuwiki\Cache\Cache('validated', 'authgooglesheets');
+        $cache = new Cache('validated', 'authgooglesheets');
 
         if ($cache->retrieveCache()) {
             return true;
@@ -322,7 +324,7 @@ class helper_plugin_authgooglesheets extends Plugin
      * Returns the service account authentication for the API client
      *
      * @return ServiceAccountAuth
-     * @throws \dokuwiki\plugin\authgooglesheets\SheetsException when the credentials are missing or invalid
+     * @throws SheetsException when the credentials are missing or invalid
      */
     protected function getAuth()
     {
@@ -340,7 +342,7 @@ class helper_plugin_authgooglesheets extends Plugin
     protected function resetUsers()
     {
         $this->users = [];
-        $userCache = new dokuwiki\Cache\Cache($this->userCacheId, 'authgooglesheets');
+        $userCache = new Cache($this->userCacheId, 'authgooglesheets');
         $userCache->removeCache();
     }
 }

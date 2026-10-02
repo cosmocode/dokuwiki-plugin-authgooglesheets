@@ -90,7 +90,7 @@ class auth_plugin_authgooglesheets extends AuthPlugin
         $userData['created'] = dformat();
 
         // set default group if no groups specified
-        if (!is_array($grps)) $grps = array($conf['defaultgroup']);
+        if (!is_array($grps)) $grps = [$conf['defaultgroup']];
         $userData['grps'] = implode(',', $grps);
 
         return $this->helper->appendUser($userData);
@@ -125,7 +125,7 @@ class auth_plugin_authgooglesheets extends AuthPlugin
      * @param array $filter
      * @return int
      */
-    public function getUserCount($filter = array())
+    public function getUserCount($filter = [])
     {
         return count($this->helper->getUsers(0, 0, $filter));
     }
